@@ -1,0 +1,12 @@
+- take screenshot every 1s AND when TTS is done talking
+- pass screenshot onto google gemini api
+- google gemini api (gemini 3 flash preview)
+	- prompt, personality
+	- current screenshot
+	- recent events (last 10 s)
+	- past context
+- return JSON:
+	- vocal response
+	- recent events append
+	- past context modification
+- verify api response, pass response onto TTS
