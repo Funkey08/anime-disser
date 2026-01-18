@@ -73,7 +73,6 @@ Replace the placeholder values with your actual API keys:
 
 Make sure you have character images in the `assets/` folder. The project currently uses `asuka_angryy.gif` because of course it does.
 
----
 
 ## Running It
 
