@@ -33,8 +33,16 @@ def rms_strength_int16(audio_i16: np.ndarray) -> float:
     return min(1.0, rms * 6.0)
 
 
-def speak_streaming_with_overlay(text: str):
-    control_q.put("show")
+def speak_streaming_with_overlay(
+    text: str,
+    strength_queue: "queue.Queue[float]" = None,
+    control_queue: "queue.Queue[str]" = None,
+):
+    # Use provided queues or fall back to module-level ones
+    sq = strength_queue if strength_queue is not None else strength_q
+    cq = control_queue if control_queue is not None else control_q
+
+    cq.put("show")
 
     with client.audio.speech.with_streaming_response.create(
         model="hexgrad/Kokoro-82M",
@@ -65,22 +73,26 @@ def speak_streaming_with_overlay(text: str):
                 audio = np.frombuffer(audio_bytes, dtype=np.int16)
                 stream.write(audio)
 
-                strength_q.put(rms_strength_int16(audio))
+                sq.put(rms_strength_int16(audio))
 
     # Speech ended
-    strength_q.put(0.0)
-    control_q.put("hide")
+    sq.put(0.0)
+    cq.put("hide")
 
 
-if __name__ == "__main__":
-    # Start overlay on a separate thread
-    overlay_thread = threading.Thread(
-        target=run_overlay, args=("asuka.png", strength_q, control_q), daemon=True
-    )
-    overlay_thread.start()
+# if __name__ == "__main__":
 
-    # Test
-    speak_streaming_with_overlay("Baka. At least the overlay works now.")
-    time.sleep(1)
+#     CHARACTER_PNG_PATH = "assets/asuka.png"
+#     # Start overlay on a separate thread
+#     overlay_thread = threading.Thread(
+#         target=run_overlay,
+#         args=(CHARACTER_PNG_PATH, strength_q, control_q),
+#         daemon=True,
+#     )
+#     overlay_thread.start()
 
-    control_q.put("quit")
+#     # Test
+#     speak_streaming_with_overlay("Baka. At least the overlay works now.")
+#     time.sleep(1)
+
+#     control_q.put("quit")

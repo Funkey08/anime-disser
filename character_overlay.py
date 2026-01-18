@@ -9,7 +9,7 @@ import win32gui
 
 
 class CharacterOverlay(QtWidgets.QWidget):
-    def __init__(self, png_path: str, size_px: int = 260, margin_px: int = 18):
+    def __init__(self, png_path: str, size_px: int = 400, margin_px: int = 18):
         super().__init__()
         self.png_path = png_path
         self.size_px = size_px
@@ -29,18 +29,19 @@ class CharacterOverlay(QtWidgets.QWidget):
             QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True
         )
 
-        pix = QtGui.QPixmap(self.png_path)
-        if pix.isNull():
+        # Load and store original pixmap
+        self.original_pix = QtGui.QPixmap(self.png_path)
+        if self.original_pix.isNull():
             raise FileNotFoundError(f"Could not load PNG: {self.png_path}")
 
-        pix = pix.scaled(
+        self.original_pix = self.original_pix.scaled(
             self.size_px,
             self.size_px,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
 
-        self.label.setPixmap(pix)
+        self.label.setPixmap(self.original_pix)
         self.label.adjustSize()
 
         # Window size = image size
@@ -102,20 +103,39 @@ class CharacterOverlay(QtWidgets.QWidget):
         # Smooth so it looks nicer
         self.smoothed = 0.85 * self.smoothed + 0.15 * self.strength
 
-        # If effectively silent, snap back and optionally hide
+        # If effectively silent, reset to upright
         if self.smoothed < 0.01:
+            self.label.setPixmap(self.original_pix)
+            self.resize(self.original_pix.size())
             self.move(self.base_pos)
-            # hide when silent (optional). You can also control explicitly from your TTS loop.
             return
 
-        # Convert strength -> pixels of shake
-        max_shake_px = 18  # tune this
-        shake = self.smoothed * max_shake_px
+        # Convert strength -> degrees of rotation (reduced for less vigorous motion)
+        max_rotation_deg = 5  # reduced from 15 to make it less vigorous
+        rotation_angle = (random.random() - 0.5) * 2 * self.smoothed * max_rotation_deg
 
-        dx = int(random.uniform(-shake, shake))
-        dy = int(random.uniform(-shake, shake))
+        # Create rotation transform
+        transform = QtGui.QTransform()
+        transform.rotate(rotation_angle)
 
-        self.move(self.base_pos.x() + dx, self.base_pos.y() + dy)
+        # Apply rotation
+        rotated_pix = self.original_pix.transformed(
+            transform, QtCore.Qt.TransformationMode.SmoothTransformation
+        )
+
+        self.label.setPixmap(rotated_pix)
+        self.resize(rotated_pix.size())
+
+        # Calculate position to keep bottom-right corner fixed
+        # The bottom-right corner of the original image
+        orig_bottom_right_x = self.base_pos.x() + self.original_pix.width()
+        orig_bottom_right_y = self.base_pos.y() + self.original_pix.height()
+
+        # New position: bottom-right of rotated image should match original bottom-right
+        new_x = orig_bottom_right_x - rotated_pix.width()
+        new_y = orig_bottom_right_y - rotated_pix.height()
+
+        self.move(new_x, new_y)
 
 
 def run_overlay(

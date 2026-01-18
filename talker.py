@@ -6,10 +6,14 @@ from io import BytesIO
 import json
 import os
 import pyscreenshot
+import queue
 import re
+import threading
 import time
 
-from tts_tester import stream_audio
+from overlay_controller import speak_streaming_with_overlay
+from character_overlay import run_overlay
+from tts_engine import stream_audio
 
 
 def get_md_text(file_path: str) -> str:
@@ -19,7 +23,9 @@ def get_md_text(file_path: str) -> str:
 
 def take_screenshot():
     print(f"({datetime.now()}) ", "TAKING SCREENSHOT...")
-    return pyscreenshot.grab()
+    screenshot = pyscreenshot.grab()
+    print(f"({datetime.now()}) ", f"Screenshot size: {screenshot.size[0]}x{screenshot.size[1]} pixels")
+    return screenshot
 
 
 def pil_to_png_bytes(image) -> bytes:
@@ -91,45 +97,66 @@ def strip_code_fences(text: str) -> str:
     return re.sub(r"```(json)?\n(.*?)```", r"\2", text, flags=re.DOTALL).strip()
 
 
-if __name__ == "__main__":
-    load_dotenv()
+def main_loop(
+    strength_q,
+    control_q,
+    main_prompt_path: str,
+    character_prompt_path: str,
+    game_prompt_path: str,
+    num_iterations: int = 2,
+    sleep_duration: float = 3,
+):
+    """Background thread that handles screenshot/TTS logic."""
+    SYSTEM_PROMPT: str = get_md_text(main_prompt_path)
+    CHARACTER_PROMPT: str = get_md_text(character_prompt_path)
+    GAME_PROMPT: str = get_md_text(game_prompt_path)
 
-    MAIN_PROMPT_PATH = "prompts/main_prompt.md"
-    CHARACTER_PROMPT_PATH = "prompts/character_asuka.md"
-    GAME_PROMPT_PATH = "prompts/game_test.md"
-
-    SYSTEM_PROMPT: str = get_md_text(MAIN_PROMPT_PATH)
-    CHARACTER_PROMPT: str = get_md_text(CHARACTER_PROMPT_PATH)
-    GAME_PROMPT: str = get_md_text(GAME_PROMPT_PATH)
     recent_events: list[str] = []
     past_context: str = ""
 
-    for i in range(2):
+    try:
+        for i in range(num_iterations):
 
-        complete_prompt = get_complete_prompt(
-            SYSTEM_PROMPT, CHARACTER_PROMPT, GAME_PROMPT, recent_events, past_context
-        )
+            complete_prompt = get_complete_prompt(
+                SYSTEM_PROMPT,
+                CHARACTER_PROMPT,
+                GAME_PROMPT,
+                recent_events,
+                past_context,
+            )
 
-        screenshot = take_screenshot()
-        model_return = send_prompt_to_model(complete_prompt, screenshot)
+            screenshot = take_screenshot()
+            model_return = send_prompt_to_model(complete_prompt, screenshot)
 
-        print(model_return)
+            print(model_return)
 
-        # Parse JSON
-        data = json.loads(strip_code_fences(model_return))
+            # Parse JSON
+            data = json.loads(strip_code_fences(model_return))
 
-        message = data.get("commentary", "No message returned.")
+            should_comment = bool(data.get("should_comment", False))
+            message = (
+                data.get("commentary", "No message returned.") if should_comment else ""
+            )
 
-        print(f"({datetime.now()}) ", " COMMENTARY: ", message)
+            print(f"({datetime.now()}) ", " COMMENTARY: ", message)
 
-        stream_audio(message)
+            # Speak + show overlay only if there's something to say
+            if should_comment and message.strip():
+                speak_streaming_with_overlay(
+                    text=message,
+                    strength_queue=strength_q,
+                    control_queue=control_q,
+                )
 
-        # Update memory
-        recent_events = add_to_recent_events(
-            recent_events, data.get("recent_events", [])
-        )
-        past_context = data.get("past_context", past_context)
-        print(f"({datetime.now()}) ", "UPDATED RECENT EVENTS: ", recent_events)
-        print(f"({datetime.now()}) ", "UPDATED PAST CONTEXT: ", past_context)
+            # Update memory
+            recent_events = add_to_recent_events(
+                recent_events, data.get("recent_events", [])
+            )
+            past_context = data.get("past_context", past_context)
 
-        time.sleep(3)
+            print(f"({datetime.now()}) ", "UPDATED RECENT EVENTS: ", recent_events)
+            print(f"({datetime.now()}) ", "UPDATED PAST CONTEXT: ", past_context)
+
+            time.sleep(sleep_duration)
+    finally:
+        control_q.put("quit")
