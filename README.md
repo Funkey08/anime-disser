@@ -28,8 +28,8 @@ Think of it as having a backseat gamer except she's 2D and powered by AI.
 - **Python 3.14** (or compatible version)
 - **Conda/Miniconda** (because we're fancy like that)
 - **A Google Gemini API key** (get one at [Google AI Studio](https://aistudio.google.com/apikey))
+- **A Deep Infra API key** (get one at [Deep Infra](https://deepinfra.com/dash)]
 - **Windows OS** (the overlay uses `win32gui` because compatibility is for the weak)
-- **Thick skin** (not installable via pip, unfortunately)
 
 ### Step 1: Clone This Mistake
 
@@ -108,18 +108,18 @@ Edit the constants in [`main.py`](main.py) to adjust:
 
 ```
 anime-disser/
-├── main.py                    # The orchestrator of your suffering
-├── talker.py                  # Handles AI chat and screenshots
-├── character_overlay.py       # The overlay widget (your new "friend")
-├── overlay_controller.py      # Manages TTS + overlay shake intensity
+├── main.py                   # Suffering orchestrator
+├── talker.py                 # Handles AI chat and screenshots
+├── character_overlay.py      # The overlay widget
+├── overlay_controller.py     # Manages TTS + overlay shake intensity
 ├── tts_engine.py             # Text-to-speech engine
 ├── environment.yml           # Conda environment setup
 ├── .env                      # Your API keys (DO NOT COMMIT)
 ├── assets/                   # Character images/gifs
-│   └── asuka_angryy.gif     # Default: Maximum sass
+│   └── asuka_angryy.gif      # Angry
 └── prompts/                  # AI personality files
     ├── main_prompt.md        # Base instructions
-    ├── character_asuka.md    # Asuka's personality
+    ├── character_asuka.md    # Asuka's based personality
     └── game_minecraft.md     # Game context
 ```
 
