@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from io import BytesIO
+from screeninfo import get_monitors
 import json
 import os
 import pyscreenshot
@@ -21,10 +22,55 @@ def get_md_text(file_path: str) -> str:
         return file.read()
 
 
-def take_screenshot():
+def list_monitors():
+    """List all available monitors with their details."""
+    monitors = get_monitors()
+    print("\nAvailable monitors:")
+    for i, monitor in enumerate(monitors):
+        print(
+            f"  Monitor {i}: {monitor.width}x{monitor.height} at ({monitor.x}, {monitor.y})"
+        )
+        if monitor.is_primary:
+            print(f"    (Primary monitor)")
+    return monitors
+
+
+def take_screenshot(monitor_index: int = None):
+    """
+    Take a screenshot from a specific monitor or all monitors.
+
+    Args:
+        monitor_index: Index of the monitor to capture (0, 1, 2, etc.)
+                      If None, captures all monitors (entire virtual desktop)
+    """
     print(f"({datetime.now()}) ", "TAKING SCREENSHOT...")
-    screenshot = pyscreenshot.grab()
-    print(f"({datetime.now()}) ", f"Screenshot size: {screenshot.size[0]}x{screenshot.size[1]} pixels")
+
+    if monitor_index is not None:
+        monitors = get_monitors()
+        if monitor_index < 0 or monitor_index >= len(monitors):
+            raise ValueError(
+                f"Monitor index {monitor_index} out of range (0-{len(monitors)-1})"
+            )
+
+        monitor = monitors[monitor_index]
+        bbox = (
+            monitor.x,
+            monitor.y,
+            monitor.x + monitor.width,
+            monitor.y + monitor.height,
+        )
+        screenshot = pyscreenshot.grab(bbox=bbox)
+        print(
+            f"({datetime.now()}) ",
+            f"Captured monitor {monitor_index}: {screenshot.size[0]}x{screenshot.size[1]} pixels",
+        )
+    else:
+        screenshot = pyscreenshot.grab()
+        print(
+            f"({datetime.now()}) ",
+            f"Captured all monitors: {screenshot.size[0]}x{screenshot.size[1]} pixels",
+        )
+
     return screenshot
 
 
@@ -105,6 +151,7 @@ def main_loop(
     game_prompt_path: str,
     num_iterations: int = 2,
     sleep_duration: float = 3,
+    monitor_index: int = None,
 ):
     """Background thread that handles screenshot/TTS logic."""
     SYSTEM_PROMPT: str = get_md_text(main_prompt_path)
@@ -125,7 +172,7 @@ def main_loop(
                 past_context,
             )
 
-            screenshot = take_screenshot()
+            screenshot = take_screenshot(monitor_index)
             model_return = send_prompt_to_model(complete_prompt, screenshot)
 
             print(model_return)
