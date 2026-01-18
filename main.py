@@ -16,7 +16,7 @@ MAIN_PROMPT_PATH = "prompts/main_prompt.md"
 CHARACTER_PROMPT_PATH = "prompts/character_asuka.md"
 GAME_PROMPT_PATH = "prompts/game_minecraft.md"
 PNG_PATH = "assets/asuka_angryy.gif"
-NUM_ITERATIONS = 2
+NUM_ITERATIONS = 10
 SLEEP_BETWEEN_ITERATIONS = 3
 MONITOR_INDEX = 0  # None = all monitors, 0 = first monitor, 1 = second monitor, etc.
 

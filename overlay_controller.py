@@ -42,7 +42,7 @@ def speak_streaming_with_overlay(
     sq = strength_queue if strength_queue is not None else strength_q
     cq = control_queue if control_queue is not None else control_q
 
-    cq.put("show")
+    overlay_shown = False  # Track if we've shown the overlay yet
 
     with client.audio.speech.with_streaming_response.create(
         model="hexgrad/Kokoro-82M",
@@ -69,6 +69,11 @@ def speak_streaming_with_overlay(
 
                 if not audio_bytes:
                     continue
+
+                # Show overlay only when first audio chunk is ready to play
+                if not overlay_shown:
+                    cq.put("show")
+                    overlay_shown = True
 
                 audio = np.frombuffer(audio_bytes, dtype=np.int16)
                 stream.write(audio)

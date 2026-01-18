@@ -9,7 +9,7 @@ import win32gui
 
 
 class CharacterOverlay(QtWidgets.QWidget):
-    def __init__(self, png_path: str, size_px: int = 400, margin_px: int = 18):
+    def __init__(self, png_path: str, size_px: int = 800, margin_px: int = 18):
         super().__init__()
         self.png_path = png_path
         self.size_px = size_px
